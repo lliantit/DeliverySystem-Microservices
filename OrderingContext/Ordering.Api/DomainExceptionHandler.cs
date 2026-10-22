@@ -11,6 +11,12 @@ public sealed class DomainExceptionHandler(IProblemDetailsService problemDetails
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext http, Exception ex, CancellationToken ct)
     {
+        // Якщо це не наша помилка - віддаємо системі (буде 500)
+        if (ex is not NotFoundException and not BusinessConflictException and not ValidationException)
+        {
+            return false; 
+        }
+
         http.Response.StatusCode = ex switch
         {
             NotFoundException => StatusCodes.Status404NotFound,
@@ -19,10 +25,12 @@ public sealed class DomainExceptionHandler(IProblemDetailsService problemDetails
             _ => StatusCodes.Status500InternalServerError
         };
 
-        return await problemDetails.TryWriteAsync(new ProblemDetailsContext 
+        await problemDetails.TryWriteAsync(new ProblemDetailsContext 
         { 
             HttpContext = http, 
             Exception = ex 
         });
+
+        return true; 
     }
 }

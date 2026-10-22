@@ -15,9 +15,10 @@ public sealed class OrderRepository : BaseDapperRepository<Order>, IOrderReposit
 
     public async Task<Order?> GetWithItemsAsync(long orderId, CancellationToken ct = default)
     {
+        // Використовуємо AS, щоб підлаштувати колонки БД під C# властивості
         const string sql = @"
-            SELECT o.Id, o.CustomerId, o.Status, o.OrderDate,
-                   i.OrderId, i.ProductId, i.ProductName, i.UnitPrice, i.Units
+            SELECT o.Id, o.CustomerId, o.Status, o.CreatedAt AS OrderDate,
+                   i.OrderId, i.MenuItemId AS ProductId, i.ItemName AS ProductName, i.UnitPrice, i.Quantity AS Units
             FROM dbo.Orders o 
             LEFT JOIN dbo.OrderItems i ON i.OrderId = o.Id
             WHERE o.Id = @OrderId";
