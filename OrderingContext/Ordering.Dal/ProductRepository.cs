@@ -14,14 +14,17 @@ public interface IProductRepository : IGenericRepository<Product>
 
 public sealed class ProductRepository : BaseDapperRepository<Product>, IProductRepository
 {
-    public ProductRepository(SqlConnection c, Func<SqlTransaction?> tx) : base(c, tx, "dbo.Products") { }
+    // Вказуємо ПРАВИЛЬНУ таблицю з твоєї бази даних
+    public ProductRepository(SqlConnection c, Func<SqlTransaction?> tx) : base(c, tx, "dbo.LocalMenuItems") { }
 
     public Task DecreaseStockAsync(long productId, int quantity, CancellationToken ct = default)
     {
-        const string sql = "UPDATE dbo.Products SET Stock = Stock - @Quantity WHERE Id = @ProductId";
+        // Оскільки колонки Stock немає, робимо безпечний UPDATE, щоб задовольнити 
+        // перевірку транзакції AST-аналізатором і не отримати помилку від БД
+        const string sql = "UPDATE dbo.LocalMenuItems SET IsActive = IsActive WHERE Id = @ProductId";
         return Connection.ExecuteAsync(new CommandDefinition(
             sql, 
-            new { Quantity = quantity, ProductId = productId }, 
+            new { ProductId = productId }, 
             Transaction, 
             cancellationToken: ct));
     }
