@@ -18,8 +18,7 @@ public sealed class CustomerRepository : RepositoryBase, ICustomerRepository
 
     public async Task<Customer?> GetByIdAsync(long id, CancellationToken ct = default)
     {
-        // Замінено Email на Phone відповідно до структури таблиці
-        const string sql = "SELECT Id, Phone, FullName FROM dbo.Customers WHERE Id = @Id";
+        const string sql = "SELECT Id, Email, FullName FROM dbo.Customers WHERE Id = @Id";
         await EnsureOpenAsync(ct);
         
         await using var command = new SqlCommand(sql, Connection, Transaction);
@@ -31,7 +30,7 @@ public sealed class CustomerRepository : RepositoryBase, ICustomerRepository
         return new Customer
         {
             Id = reader.GetInt64(0),
-            Phone = reader.GetString(1), // Переконайся, що в класі Customer є властивість Phone
+            Email = reader.GetString(1),
             FullName = reader.GetString(2)
         };
     }

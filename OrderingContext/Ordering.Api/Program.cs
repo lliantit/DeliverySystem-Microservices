@@ -33,6 +33,9 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Виклик ініціалізації через DAL — чисто та надійно
+await DatabaseInitializer.InitializeAsync(connectionString);
+
 app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
