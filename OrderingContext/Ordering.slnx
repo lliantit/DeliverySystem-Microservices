@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Ordering.Api/Ordering.Api.csproj" />
+  <Project Path="Ordering.AppHost/Ordering.AppHost.csproj" />
+  <Project Path="Ordering.Bll/Ordering.Bll.csproj" />
+  <Project Path="Ordering.Dal/Ordering.Dal.csproj" />
+  <Project Path="Ordering.Domain/Ordering.Domain.csproj" />
+</Solution>
