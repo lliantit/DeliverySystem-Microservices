@@ -22,7 +22,6 @@ public sealed class OrderRepository : BaseDapperRepository<Order>, IOrderReposit
             LEFT JOIN dbo.OrderItems i ON i.OrderId = o.Id
             WHERE o.Id = @OrderId";
 
-        await EnsureOpenAsync(ct);
         Order? result = null;
 
         await Connection.QueryAsync<Order, OrderItem?, Order>(
@@ -30,10 +29,11 @@ public sealed class OrderRepository : BaseDapperRepository<Order>, IOrderReposit
             (order, item) =>
             {
                 result ??= order;
+                if (result.Items == null) result.Items = new();
                 if (item is not null) result.Items.Add(item);
                 return result;
             },
-            splitOn: "OrderId"); // Dapper розуміє, що з цього стовпця починаються дані OrderItem
+            splitOn: "OrderId"); 
 
         return result;
     }
