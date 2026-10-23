@@ -13,6 +13,12 @@ public class CreateOrderDto
     [Range(1, long.MaxValue)]
     public long CustomerId { get; set; }
 
+    [Required, StringLength(500, MinimumLength = 1)]
+    public string DeliveryAddress { get; set; } = "";
+
+    [StringLength(1000)]
+    public string? CourierInstructions { get; set; }
+
     [Required, MinLength(1)]
     public List<CreateOrderItemDto> Items { get; set; } = new();
 }

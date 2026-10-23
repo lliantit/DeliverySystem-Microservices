@@ -1,4 +1,5 @@
 using System.Data;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AutoMapper;
@@ -28,12 +29,26 @@ public sealed class OrderService : IOrderService
 
     public async Task<OrderDto> CreateAsync(CreateOrderDto input, CancellationToken ct = default)
     {
-        var order = new Order { CustomerId = input.CustomerId };
+        // Бізнес-правила, що потребують стану БД (DataAnnotations на DTO цього не вміють)
+        var duplicate = input.Items.GroupBy(i => i.ProductId).FirstOrDefault(g => g.Count() > 1);
+        if (duplicate is not null)
+            throw new ValidationException($"Product {duplicate.Key} is listed more than once");
+
+        _ = await _uow.Customers.GetByIdAsync(input.CustomerId, ct)
+            ?? throw new ValidationException($"Customer {input.CustomerId} not found");
+
+        var order = new Order
+        {
+            CustomerId = input.CustomerId,
+            DeliveryAddress = input.DeliveryAddress,
+            CourierInstructions = input.CourierInstructions
+        };
 
         foreach (var item in input.Items)
         {
+            // Репозиторій повертає лише активні страви; ціна й назва беруться як знімок
             var product = await _uow.Products.GetByIdAsync(item.ProductId, ct)
-                          ?? throw new ValidationException($"Product {item.ProductId} not found");
+                          ?? throw new ValidationException($"Product {item.ProductId} not found or inactive");
 
             order.Items.Add(new OrderItem
             {

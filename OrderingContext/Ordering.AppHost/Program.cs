@@ -6,6 +6,7 @@ var db = builder.AddSqlServer("sql")
 
 // 2. Запускаємо наш API і передаємо йому рядок підключення до БД
 builder.AddProject<Projects.Ordering_Api>("orders-api")
-    .WithReference(db);
+    .WithReference(db)
+    .WaitFor(db);
 
 builder.Build().Run();

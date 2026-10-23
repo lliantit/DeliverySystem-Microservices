@@ -1,6 +1,33 @@
 @Ordering.Api_HostAddress = http://localhost:5221
 
-GET {{Ordering.Api_HostAddress}}/weatherforecast/
+### Створити замовлення (клієнт 1 і страви 101, 104 з початкових даних)
+POST {{Ordering.Api_HostAddress}}/api/orders
+Content-Type: application/json
 Accept: application/json
 
-###
+{
+  "customerId": 1,
+  "deliveryAddress": "вул. Центральна, 5, кв. 12",
+  "courierInstructions": "Подзвонити за 5 хвилин",
+  "items": [
+    { "productId": 101, "units": 2 },
+    { "productId": 104, "units": 1 }
+  ]
+}
+
+### Отримати замовлення
+GET {{Ordering.Api_HostAddress}}/api/orders/1
+Accept: application/json
+
+### Підтвердити замовлення (204; повторний виклик дасть 409, неіснуючий id — 404)
+POST {{Ordering.Api_HostAddress}}/api/orders/1/confirm
+
+### Помилка валідації (400): порожній список позицій
+POST {{Ordering.Api_HostAddress}}/api/orders
+Content-Type: application/json
+
+{
+  "customerId": 1,
+  "deliveryAddress": "вул. Центральна, 5",
+  "items": []
+}

@@ -14,18 +14,38 @@ public interface IProductRepository : IGenericRepository<Product>
 
 public sealed class ProductRepository : BaseDapperRepository<Product>, IProductRepository
 {
-    // Вказуємо ПРАВИЛЬНУ таблицю з твоєї бази даних
     public ProductRepository(SqlConnection c, Func<SqlTransaction?> tx) : base(c, tx, "dbo.LocalMenuItems") { }
 
-    public Task DecreaseStockAsync(long productId, int quantity, CancellationToken ct = default)
+    // Колонка CurrentPrice мапиться на Product.Price через аліас; неактивні страви не повертаються.
+    public override async Task<Product?> GetByIdAsync(long id, CancellationToken ct = default)
     {
-        // Оскільки колонки Stock немає, робимо безпечний UPDATE, щоб задовольнити 
-        // перевірку транзакції AST-аналізатором і не отримати помилку від БД
-        const string sql = "UPDATE dbo.LocalMenuItems SET IsActive = IsActive WHERE Id = @ProductId";
-        return Connection.ExecuteAsync(new CommandDefinition(
-            sql, 
-            new { ProductId = productId }, 
-            Transaction, 
-            cancellationToken: ct));
+        await EnsureOpenAsync(ct);
+
+        const string sql = @"
+            SELECT Id, Name, CurrentPrice AS Price
+            FROM dbo.LocalMenuItems
+            WHERE Id = @Id AND IsActive = 1";
+
+        return await Connection.QuerySingleOrDefaultAsync<Product>(new CommandDefinition(
+            sql, new { Id = id }, Transaction, cancellationToken: ct));
+    }
+
+    public async Task DecreaseStockAsync(long productId, int quantity, CancellationToken ct = default)
+    {
+        // У локальному довіднику немає залишків (Stock): облік залишків належить сервісу Каталогу.
+        // Тому в межах транзакції підтвердження лише блокуємо рядок і перевіряємо, що страва
+        // досі активна; якщо її деактивували між створенням і підтвердженням — це конфлікт.
+        await EnsureOpenAsync(ct);
+
+        const string sql = @"
+            UPDATE dbo.LocalMenuItems
+            SET IsActive = IsActive
+            WHERE Id = @ProductId AND IsActive = 1";
+
+        var affected = await Connection.ExecuteAsync(new CommandDefinition(
+            sql, new { ProductId = productId }, Transaction, cancellationToken: ct));
+
+        if (affected == 0)
+            throw new BusinessConflictException($"Product {productId} is no longer available");
     }
 }
