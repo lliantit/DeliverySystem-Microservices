@@ -1,26 +1,66 @@
-# DeliverySystem-Microservices
+# DeliverySystem Microservices
 
-Цей проєкт є лабораторною роботою з розробки мікросервісної архітектури для системи доставки.
+Цей репозиторій містить розробку мікросервісної архітектури системи доставки.
 
-## Архітектура баз даних
+##  Лабораторна робота №1: Проєктування БД та політика дублювання
 
-Проєкт складається з трьох незалежних мікросервісів, кожен з яких використовує власну базу даних для забезпечення ізольованості:
+### Політика дублювання даних між мікросервісами
+| Поле | Де зберігається (Копія) | Джерело-власник | Політика узгодженості |
+| :--- | :--- | :--- | :--- |
+| `ItemName`, `UnitPrice` | `OrderingDb` (таблиця `OrderItems`) | Мікросервіс `Catalog` | **Знімок (Snapshot):** Дані фіксуються під час створення замовлення. Якщо ціна чи назва в каталозі змінюються згодом, у вже створеному замовленні вони залишаються незмінними. |
+| `ProductName` / `LocalMenuItems` | `ReviewsDb` | Мікросервіс `Catalog` | **Оновлення подіями (Eventual Consistency):** При зміні назви товару в каталозі публікується подія, яка асинхронно оновлює кешовану назву в базі відгуків. |
+| `Status` / `OrderId` | `ReviewsDb` | Мікросервіс `Ordering` | **Оновлення подіями (Eventual Consistency):** Після успішного завершення замовлення публікується подія, що верифікує покупку і надає клієнту статус Verified Buyer для написання відгуку. |
 
-1. **Ordering (Замовлення):**
-    - **БД:** SQL Server
-    - **Опис:** База даних розгорнута за допомогою прямих SQL-скриптів.
+## 🏗 Лабораторна робота №2: Тришарова архітектура (ADO.NET + Dapper)
 
-2. **Catalog (Каталог):**
-    - **БД:** SQL Server + Entity Framework Core
-    - **Опис:** Використовується підхід Code-First із застосуванням міграцій EF Core для керування схемою.
+Мікросервіс `Ordering` реалізовано як самостійну вертикаль (Vertical Slice) з використанням 3-tier архітектури.
 
-3. **Reviews (Відгуки):**
-    - **БД:** MongoDB + Docker
-    - **Опис:** Нереляційна NoSQL база даних, розгорнута в ізольованому локальному Docker-контейнері.
+### Структура проєкту
+1. **Ordering.Api** (Web/API) — контролери, middleware, глобальна обробка помилок `ProblemDetails` (статуси 400, 404, 409).
+2. **Ordering.Bll** (Business Logic Layer) — сервіси (`OrderService`), DTO, мапінг через `AutoMapper`.
+3. **Ordering.Dal** (Data Access Layer) — `UnitOfWork` та репозиторії (`CustomerRepository` на ADO.NET, `OrderRepository` та `ProductRepository` на Dapper).
+4. **Ordering.Domain** — спільні моделі даних, інтерфейси репозиторіїв та доменні винятки.
+5. **Ordering.AppHost** — проєкт `.NET Aspire` для єдиної точки запуску API та БД.
 
-## Технологічний стек
-- C# / .NET
-- Microsoft SQL Server
-- MongoDB
-- Docker
-- Entity Framework Core
+###  Запуск через .NET Aspire
+1. Відкрийте термінал у корені рішення (`DeliverySystem/OrderingContext`).
+2. Виконайте команду:
+   ```bash
+   dotnet run --project Ordering.AppHost
+   ```
+3. Перейдіть за посиланням на Aspire Dashboard, яке з'явиться в консолі (зазвичай `https://localhost:17299`).
+4. В Aspire Dashboard відкрийте ендпоінт `orders-api` та додайте `/swagger` до URL для доступу до OpenAPI.
+
+###  Приклади запитів (cURL)
+
+**Створення замовлення (POST):**
+```bash
+curl -X 'POST' \
+  'https://localhost:7106/api/orders' \
+  -H 'accept: text/plain' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "customerId": 1,
+  "items": [
+    {
+      "productId": 1,
+      "units": 2
+    }
+  ]
+}'
+```
+
+**Отримання замовлення (GET):**
+```bash
+curl -X 'GET' \
+  'https://localhost:7106/api/orders/1' \
+  -H 'accept: text/plain'
+```
+
+**Підтвердження замовлення з транзакцією (POST):**
+```bash
+curl -X 'POST' \
+  'https://localhost:7106/api/orders/1/confirm' \
+  -H 'accept: */*' \
+  -d ''
+```
